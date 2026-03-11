@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Medical Necessity Letter Generator</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Segoe UI', Arial, sans-serif;
+      background: #f0f4f8;
+      min-height: 100vh;
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      padding: 40px 16px;
+    }
+    .card {
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.10);
+      padding: 40px 44px;
+      max-width: 680px;
+      width: 100%;
+    }
+    h1 { font-size: 1.45rem; color: #1a2e4a; margin-bottom: 4px; }
+    .subtitle { font-size: 0.85rem; color: #6b7a8d; margin-bottom: 32px; }
+    .section-label {
+      font-size: 0.7rem; font-weight: 700; color: #6b7a8d;
+      text-transform: uppercase; letter-spacing: 1px;
+      margin-bottom: 10px; margin-top: 24px;
+    }
+    .form-row { display: flex; gap: 16px; }
+    .form-group { display: flex; flex-direction: column; flex: 1; margin-bottom: 4px; }
+    label { font-size: 0.82rem; font-weight: 600; color: #2d3e50; margin-bottom: 5px; }
+    input[type="text"], input[type="date"], select {
+      border: 1.5px solid #dce3ec; border-radius: 7px;
+      padding: 9px 12px; font-size: 0.92rem; color: #1a2e4a;
+      background: #f8fafc; outline: none; width: 100%;
+    }
+    input:focus, select:focus { border-color: #2a6ebb; background: #fff; }
+    .eye-group { display: flex; gap: 10px; margin-top: 2px; }
+    .eye-btn {
+      flex: 1; padding: 9px 0; border: 1.5px solid #dce3ec;
+      border-radius: 7px; background: #f8fafc;
+      font-size: 0.88rem; font-weight: 600; color: #4a5c6e;
+      cursor: pointer; text-align: center;
+    }
+    .eye-btn.selected { background: #2a6ebb; color: white; border-color: #2a6ebb; }
+    .checkbox-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 20px; margin-top: 4px; }
+    .checkbox-item { display: flex; align-items: center; gap: 8px; font-size: 0.88rem; color: #2d3e50; cursor: pointer; }
+    .checkbox-item input { width: 16px; height: 16px; accent-color: #2a6ebb; cursor: pointer; }
+    .drug-label { font-weight: 600; }
+    .drug-generic { color: #6b7a8d; font-size: 0.78rem; }
+    .divider { border: none; border-top: 1.5px solid #eef1f5; margin: 28px 0 4px; }
+    .generate-btn {
+      width: 100%; margin-top: 28px; padding: 13px;
+      background: #2a6ebb; color: white; border: none;
+      border-radius: 8px; font-size: 1rem; font-weight: 700; cursor: pointer;
+    }
+    .generate-btn:hover { background: #1d5399; }
+    .error-msg { color: #c0392b; font-size: 0.82rem; margin-top: 10px; display: none; }
+    .icd-preview { font-size: 0.78rem; color: #6b7a8d; margin-top: 6px; min-height: 18px; }
+  </style>
+</head>
+<body>
+<div class="card">
+  <h1>Medical Necessity Letter Generator</h1>
+  <p class="subtitle">Intravitreal / Ocular Pharmacotherapy — Prior Authorization</p>
+
+  <div class="section-label">Patient Information</div>
+  <div class="form-row">
+    <div class="form-group">
+      <label>Patient Full Name</label>
+      <input type="text" id="patientName" placeholder="Last, First Middle" />
+    </div>
+    <div class="form-group">
+      <label>Date of Birth</label>
+      <input type="date" id="dob" />
+    </div>
+  </div>
+
+  <hr class="divider"/>
+  <div class="section-label">Requested Medication</div>
+  <div class="form-group">
+    <label>Drug Being Requested</label>
+    <select id="requestedDrug">
+      <option value="">— Select drug —</option>
+      <option value="aflibercept (EYLEA)">aflibercept (EYLEA)</option>
+      <option value="high-dose aflibercept (EYLEA HD)">high-dose aflibercept (EYLEA HD)</option>
+      <option value="faricimab (Vabysmo)">faricimab (Vabysmo)</option>
+      <option value="ranibizumab (Lucentis)">ranibizumab (Lucentis)</option>
+      <option value="brolucizumab (Beovu)">brolucizumab (Beovu)</option>
+      <option value="bevacizumab (Avastin)">bevacizumab (Avastin)</option>
+      <option value="biosimilar ranibizumab (Byooviz)">biosimilar ranibizumab (Byooviz)</option>
+      <option value="dexamethasone implant (Ozurdex)">dexamethasone implant (Ozurdex)</option>
+      <option value="fluocinolone acetonide implant (Iluvien)">fluocinolone acetonide implant (Iluvien)</option>
+    </select>
+  </div>
+
+  <hr class="divider"/>
+  <div class="section-label">Diagnosis</div>
+  <div class="form-group">
+    <label>Indication</label>
+    <select id="diagnosis" onchange="updateICD()">
+      <option value="">— Select diagnosis —</option>
+      <option value="wAMD">Neovascular (Wet) Age-Related Macular Degeneration</option>
+      <option value="DME">Diabetic Macular Edema</option>
+      <option value="ME">Macular Edema, Unspecified</option>
+      <option value="uveitis">Unspecified Focal Chorioretinal Inflammation</option>
+    </select>
+  </div>
+  <div class="form-group" style="margin-top:16px;">
+    <label>Affected Eye</label>
+    <div class="eye-group">
+      <button class="eye-btn" onclick="selectEye('OD')" id="btn-OD">Right Eye (OD)</button>
+      <button class="eye-btn" onclick="selectEye('OS')" id="btn-OS">Left Eye (OS)</button>
+      <button class="eye-btn" onclick="selectEye('OU')" id="btn-OU">Both Eyes (OU)</button>
+    </div>
+  </div>
+  <div class="icd-preview" id="icdPreview"></div>
+
+  <hr class="divider"/>
+  <div class="section-label">Prior Treatments — Inadequate Response</div>
+  <div class="checkbox-grid">
+    <label class="checkbox-item"><input type="checkbox" value="bevacizumab (Avastin)"/><span><span class="drug-label">Avastin</span> <span class="drug-generic">(bevacizumab)</span></span></label>
+    <label class="checkbox-item"><input type="checkbox" value="aflibercept (EYLEA)"/><span><span class="drug-label">EYLEA</span> <span class="drug-generic">(aflibercept)</span></span></label>
+    <label class="checkbox-item"><input type="checkbox" value="high-dose aflibercept (EYLEA HD)"/><span><span class="drug-label">EYLEA HD</span> <span class="drug-generic">(high-dose aflibercept)</span></span></label>
+    <label class="checkbox-item"><input type="checkbox" value="faricimab (Vabysmo)"/><span><span class="drug-label">Vabysmo</span> <span class="drug-generic">(faricimab)</span></span></label>
+    <label class="checkbox-item"><input type="checkbox" value="ranibizumab (Lucentis)"/><span><span class="drug-label">Lucentis</span> <span class="drug-generic">(ranibizumab)</span></span></label>
+    <label class="checkbox-item"><input type="checkbox" value="brolucizumab (Beovu)"/><span><span class="drug-label">Beovu</span> <span class="drug-generic">(brolucizumab)</span></span></label>
+    <label class="checkbox-item"><input type="checkbox" value="biosimilar ranibizumab (Byooviz)"/><span><span class="drug-label">Byooviz</span> <span class="drug-generic">(biosimilar ranibizumab)</span></span></label>
+    <label class="checkbox-item"><input type="checkbox" value="dexamethasone implant (Ozurdex)"/><span><span class="drug-label">Ozurdex</span> <span class="drug-generic">(dexamethasone implant)</span></span></label>
+    <label class="checkbox-item"><input type="checkbox" value="fluocinolone acetonide implant (Iluvien)"/><span><span class="drug-label">Iluvien</span> <span class="drug-generic">(fluocinolone acetonide)</span></span></label>
+  </div>
+
+  <p class="error-msg" id="errorMsg">Please fill in all required fields and select at least one prior treatment.</p>
+  <button class="generate-btn" onclick="generatePDF()">⬇ Generate Medical Necessity Letter (PDF)</button>
+</div>
+
+<script>
+  let selectedEye = '';
+  function selectEye(eye) {
+    selectedEye = eye;
+    ['OD','OS','OU'].forEach(e => document.getElementById('btn-'+e).classList.remove('selected'));
+    document.getElementById('btn-'+eye).classList.add('selected');
+    updateICD();
+  }
+  const icdMap = {
+    wAMD:    { OD:'H35.31', OS:'H35.32', OU:'H35.31 & H35.32', label:'Neovascular (Wet) Age-Related Macular Degeneration' },
+    DME:     { OD:'E11.3211', OS:'E11.3212', OU:'E11.3213', label:'Diabetic Macular Edema' },
+    ME:      { OD:'H35.81', OS:'H35.82', OU:'H35.89', label:'Macular Edema, Unspecified' },
+    uveitis: { OD:'H30.001', OS:'H30.002', OU:'H30.003', label:'Unspecified Focal Chorioretinal Inflammation' }
+  };
+  function updateICD() {
+    const diag = document.getElementById('diagnosis').value;
+    const preview = document.getElementById('icdPreview');
+    if (diag && selectedEye) preview.textContent = 'ICD-10: ' + icdMap[diag][selectedEye];
+    else preview.textContent = '';
+  }
+  function formatDate(s) {
+    if (!s) return '';
+    const [y,m,d] = s.split('-');
+    return `${m}/${d}/${y}`;
+  }
+  function getTodayFormatted() {
+    return new Date().toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'});
+  }
+  function generatePDF() {
+    const name = document.getElementById('patientName').value.trim();
+    const dob  = document.getElementById('dob').value;
+    const diag = document.getElementById('diagnosis').value;
+    const requested = document.getElementById('requestedDrug').value;
+    const failed = Array.from(document.querySelectorAll('.checkbox-grid input:checked')).map(c=>c.value);
+    const errEl = document.getElementById('errorMsg');
+    if (!name||!dob||!diag||!selectedEye||!requested||failed.length===0) { errEl.style.display='block'; return; }
+    errEl.style.display='none';
+    const icd = icdMap[diag][selectedEye];
+    const diagLabel = icdMap[diag].label;
+    const eyeLabel = selectedEye==='OD'?'right eye':selectedEye==='OS'?'left eye':'bilateral';
+    const eyeLabelCap = selectedEye==='OD'?'Right Eye (OD)':selectedEye==='OS'?'Left Eye (OS)':'Both Eyes (OU)';
+    const failedList = failed.length===1 ? failed[0] : failed.slice(0,-1).join(', ')+', and '+failed[failed.length-1];
+    const {jsPDF} = window.jspdf;
+    const doc = new jsPDF({unit:'pt',format:'letter'});
+    const mL=72, mR=72, pW=612, tW=pW-mL-mR;
+    let y=72;
+    const sf=(style,size,color=[0,0,0])=>{doc.setFont('helvetica',style);doc.setFontSize(size);doc.setTextColor(...color);};
+    const wrap=(text,yy,lh=15.5)=>{
+      const lines=doc.splitTextToSize(text,tW);
+      lines.forEach((l,i)=>doc.text(l,mL,yy+i*lh));
+      return yy+lines.length*lh;
+    };
+    // Header
+    sf('bold',13,[26,46,74]); doc.text('Department of Ophthalmology',mL,y); y+=16;
+    sf('normal',10,[100,100,100]); doc.text('Vitreoretinal Surgery & Medical Retina',mL,y); y+=24;
+    doc.setDrawColor(200,210,220); doc.setLineWidth(0.75); doc.line(mL,y,pW-mR,y); y+=20;
+    sf('normal',10,[100,100,100]); doc.text(getTodayFormatted(),mL,y); y+=28;
+    // RE block
+    sf('bold',10.5,[0,0,0]); doc.text(`RE: Medical Necessity — ${requested}`,mL,y); y+=15;
+    sf('normal',10.5); doc.text(`Patient: ${name}   |   DOB: ${formatDate(dob)}   |   ${eyeLabelCap}`,mL,y); y+=15;
+    doc.text(`Diagnosis: ${diagLabel}   |   ICD-10: ${icd}`,mL,y); y+=26;
+    // Body
+    sf('normal',10.5);
+    y=wrap('To Whom It May Concern:',y); y+=14;
+    y=wrap(`I am writing on behalf of my patient, ${name} (Date of Birth: ${formatDate(dob)}), to request prior authorization for ${requested} for the treatment of ${diagLabel} (ICD-10: ${icd}) affecting the ${eyeLabel}.`,y); y+=12;
+    y=wrap(`This patient has demonstrated persistent, recalcitrant macular edema with inadequate treatment response despite appropriate trials — defined as three (3) or more injections — of the following agent(s): ${failedList}. Despite these treatments, the patient has not achieved adequate anatomic or functional response, as evidenced by persistent subretinal or intraretinal fluid on optical coherence tomography (OCT) and/or ongoing visual impairment.`,y); y+=12;
+    y=wrap(`Please note that ranibizumab (Lucentis) and biosimilar ranibizumab (Byooviz) are not stocked at our institution and are therefore not viable alternatives for this patient.`,y); y+=12;
+    y=wrap(`Given the documented treatment failure described above, it is my medical opinion that ${requested} represents the most appropriate and medically necessary next step in the management of this patient's condition. I respectfully request expedited review and approval of this prior authorization.`,y); y+=12;
+    y=wrap(`Please do not hesitate to contact our office if additional clinical documentation is required.`,y); y+=28;
+    // Signature
+    doc.text('Sincerely,',mL,y); y+=42;
+    doc.setDrawColor(160,160,160); doc.setLineWidth(0.5); doc.line(mL,y,mL+200,y); y+=14;
+    sf('bold',10.5); doc.text('Attending Physician, MD',mL,y); y+=14;
+    sf('normal',10); doc.text('Department of Ophthalmology — Vitreoretinal Surgery',mL,y);
+    // Footer
+    doc.setDrawColor(200,210,220); doc.setLineWidth(0.5); doc.line(mL,756,pW-mR,756);
+    sf('normal',8,[160,160,160]); doc.text('This letter was generated for prior authorization purposes. Contact the treating physician\'s office for questions.',mL,770);
+    const safeName=name.replace(/[^a-zA-Z0-9]/g,'_');
+    const safeDate=new Date().toISOString().slice(0,10);
+    doc.save(`MedNecessity_${safeName}_${safeDate}.pdf`);
+  }
+</script>
+</body>
+</html>
