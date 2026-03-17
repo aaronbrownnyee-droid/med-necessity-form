@@ -1,4 +1,298 @@
-let selectedEye = '';
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Medical Necessity Letter Generator</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Segoe UI', Arial, sans-serif;
+      background: #f0f4f8;
+      min-height: 100vh;
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      padding: 40px 16px;
+    }
+    .card {
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.10);
+      padding: 40px 44px;
+      max-width: 680px;
+      width: 100%;
+    }
+    h1 { font-size: 1.45rem; color: #1a2e4a; margin-bottom: 4px; }
+    .subtitle { font-size: 0.85rem; color: #6b7a8d; margin-bottom: 32px; }
+    .section-label {
+      font-size: 0.7rem; font-weight: 700; color: #6b7a8d;
+      text-transform: uppercase; letter-spacing: 1px;
+      margin-bottom: 10px; margin-top: 24px;
+    }
+    .form-row { display: flex; gap: 16px; }
+    .form-group { display: flex; flex-direction: column; flex: 1; margin-bottom: 4px; }
+    label { font-size: 0.82rem; font-weight: 600; color: #2d3e50; margin-bottom: 5px; }
+    input[type="text"], input[type="date"], select {
+      border: 1.5px solid #dce3ec; border-radius: 7px;
+      padding: 9px 12px; font-size: 0.92rem; color: #1a2e4a;
+      background: #f8fafc; outline: none; width: 100%;
+    }
+    input:focus, select:focus { border-color: #2a6ebb; background: #fff; }
+    .eye-group { display: flex; gap: 10px; margin-top: 2px; }
+    .eye-btn {
+      flex: 1; padding: 9px 0; border: 1.5px solid #dce3ec;
+      border-radius: 7px; background: #f8fafc;
+      font-size: 0.88rem; font-weight: 600; color: #4a5c6e;
+      cursor: pointer; text-align: center;
+    }
+    .eye-btn.selected { background: #2a6ebb; color: white; border-color: #2a6ebb; }
+    .checkbox-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 20px; margin-top: 4px; }
+    .checkbox-item { display: flex; align-items: center; gap: 8px; font-size: 0.88rem; color: #2d3e50; cursor: pointer; }
+    .checkbox-item input { width: 16px; height: 16px; accent-color: #2a6ebb; cursor: pointer; }
+    .drug-label { font-weight: 600; }
+    .drug-generic { color: #6b7a8d; font-size: 0.78rem; }
+    .divider { border: none; border-top: 1.5px solid #eef1f5; margin: 28px 0 4px; }
+    .generate-btn {
+      width: 100%; margin-top: 28px; padding: 13px;
+      background: #2a6ebb; color: white; border: none;
+      border-radius: 8px; font-size: 1rem; font-weight: 700; cursor: pointer;
+    }
+    .generate-btn:hover { background: #1d5399; }
+    .error-msg { color: #c0392b; font-size: 0.82rem; margin-top: 10px; display: none; }
+    .icd-preview { font-size: 0.78rem; color: #2a6ebb; font-weight: 600; margin-top: 6px; min-height: 18px; }
+    .cursive-preview {
+      font-family: 'Georgia', cursive; font-style: italic;
+      font-size: 1.1rem; color: #1a2e4a; margin-top: 4px; min-height: 24px;
+    }
+    .diag-sub { margin-top: 10px; display: none; }
+    .diag-sub.visible { display: block; }
+    .diag-sub label { margin-bottom: 5px; color: #4a5c6e; }
+  </style>
+</head>
+<body>
+<div class="card">
+  <h1>Medical Necessity Letter Generator</h1>
+  <p class="subtitle">Intravitreal / Ocular Pharmacotherapy — Prior Authorization</p>
+
+  <!-- PATIENT INFO -->
+  <div class="section-label">Patient Information</div>
+  <div class="form-row">
+    <div class="form-group">
+      <label>Patient Full Name</label>
+      <input type="text" id="patientName" placeholder="Last, First Middle" />
+    </div>
+    <div class="form-group">
+      <label>Date of Birth</label>
+      <input type="date" id="dob" />
+    </div>
+  </div>
+
+  <!-- REQUESTED DRUG -->
+  <hr class="divider"/>
+  <div class="section-label">Requested Medication</div>
+  <div class="form-group">
+    <label>Drug Being Requested</label>
+    <select id="requestedDrug">
+      <option value="">— Select drug —</option>
+      <optgroup label="Anti-VEGF">
+        <option value="aflibercept (EYLEA)">aflibercept (EYLEA)</option>
+        <option value="faricimab (Vabysmo)">faricimab (Vabysmo)</option>
+        <option value="bevacizumab (Avastin)">bevacizumab (Avastin)</option>
+      </optgroup>
+      <optgroup label="Corticosteroid Implants">
+        <option value="dexamethasone implant (Ozurdex)">dexamethasone implant (Ozurdex)</option>
+        <option value="fluocinolone acetonide implant (Iluvien)">fluocinolone acetonide implant (Iluvien)</option>
+        <option value="triamcinolone acetonide (Xipere)">triamcinolone acetonide (Xipere)</option>
+      </optgroup>
+      <optgroup label="Other / Specialty">
+        <option value="methotrexate sodium (intravitreal)">methotrexate sodium (intravitreal)</option>
+        <option value="ganciclovir (intravitreal)">ganciclovir (intravitreal)</option>
+      </optgroup>
+    </select>
+  </div>
+
+  <!-- DIAGNOSIS -->
+  <hr class="divider"/>
+  <div class="section-label">Diagnosis</div>
+  <div class="form-group">
+    <label>Diagnosis Category</label>
+    <select id="diagCategory" onchange="onDiagCategoryChange()">
+      <option value="">— Select category —</option>
+      <option value="wAMD">Neovascular (Wet) Age-Related Macular Degeneration</option>
+      <option value="DME">Diabetic Macular Edema / Diabetic Retinopathy</option>
+      <option value="BRVO">Macular Edema — Branch Retinal Vein Occlusion (BRVO)</option>
+      <option value="CRVO">Macular Edema — Central Retinal Vein Occlusion (CRVO)</option>
+      <option value="ME">Macular Edema, Unspecified</option>
+      <option value="uveitis">Unspecified Focal Chorioretinal Inflammation</option>
+    </select>
+  </div>
+
+  <!-- wAMD sub-selector -->
+  <div class="diag-sub" id="sub-wAMD">
+    <div class="form-group">
+      <label>AMD Subtype</label>
+      <select id="sel-wAMD" onchange="updateICD()">
+        <option value="">— Select subtype —</option>
+        <optgroup label="Unspecified Exudative AMD">
+          <option value="H35.3110|Unspecified exudative AMD, right eye">H35.3110 — Unspecified exudative AMD, right eye</option>
+          <option value="H35.3120|Unspecified exudative AMD, left eye">H35.3120 — Unspecified exudative AMD, left eye</option>
+          <option value="H35.3130|Unspecified exudative AMD, bilateral">H35.3130 — Unspecified exudative AMD, bilateral</option>
+          <option value="H35.3190|Unspecified exudative AMD, unspecified eye">H35.3190 — Unspecified exudative AMD, unspecified eye</option>
+        </optgroup>
+        <optgroup label="Active Choroidal Neovascularization">
+          <option value="H35.3111|Exudative AMD with active CNV, right eye">H35.3111 — Active CNV, right eye</option>
+          <option value="H35.3121|Exudative AMD with active CNV, left eye">H35.3121 — Active CNV, left eye</option>
+          <option value="H35.3131|Exudative AMD with active CNV, bilateral">H35.3131 — Active CNV, bilateral</option>
+        </optgroup>
+        <optgroup label="Inactive Choroidal Neovascularization">
+          <option value="H35.3112|Exudative AMD with inactive CNV, right eye">H35.3112 — Inactive CNV, right eye</option>
+          <option value="H35.3122|Exudative AMD with inactive CNV, left eye">H35.3122 — Inactive CNV, left eye</option>
+          <option value="H35.3132|Exudative AMD with inactive CNV, bilateral">H35.3132 — Inactive CNV, bilateral</option>
+        </optgroup>
+        <optgroup label="Inactive Scar">
+          <option value="H35.3113|Exudative AMD with inactive scar, right eye">H35.3113 — Inactive scar, right eye</option>
+          <option value="H35.3123|Exudative AMD with inactive scar, left eye">H35.3123 — Inactive scar, left eye</option>
+          <option value="H35.3133|Exudative AMD with inactive scar, bilateral">H35.3133 — Inactive scar, bilateral</option>
+        </optgroup>
+      </select>
+    </div>
+  </div>
+
+  <!-- DME sub-selector -->
+  <div class="diag-sub" id="sub-DME">
+    <div class="form-group">
+      <label>Diabetes Type &amp; Retinopathy Stage</label>
+      <select id="sel-DME" onchange="updateICD()">
+        <option value="">— Select code —</option>
+        <optgroup label="Type 2 DM — Unspecified DR">
+          <option value="E11.311|Type 2 DM with unspecified diabetic retinopathy with macular edema">E11.311 — Unspecified DR with ME</option>
+        </optgroup>
+        <optgroup label="Type 2 DM — Mild NPDR with ME">
+          <option value="E11.3211|Type 2 DM, mild NPDR with macular edema, right eye">E11.3211 — Mild NPDR with ME, right</option>
+          <option value="E11.3212|Type 2 DM, mild NPDR with macular edema, left eye">E11.3212 — Mild NPDR with ME, left</option>
+          <option value="E11.3213|Type 2 DM, mild NPDR with macular edema, bilateral">E11.3213 — Mild NPDR with ME, bilateral</option>
+        </optgroup>
+        <optgroup label="Type 2 DM — Moderate NPDR with ME">
+          <option value="E11.3311|Type 2 DM, moderate NPDR with macular edema, right eye">E11.3311 — Moderate NPDR with ME, right</option>
+          <option value="E11.3312|Type 2 DM, moderate NPDR with macular edema, left eye">E11.3312 — Moderate NPDR with ME, left</option>
+          <option value="E11.3313|Type 2 DM, moderate NPDR with macular edema, bilateral">E11.3313 — Moderate NPDR with ME, bilateral</option>
+        </optgroup>
+        <optgroup label="Type 2 DM — Severe NPDR with ME">
+          <option value="E11.3411|Type 2 DM, severe NPDR with macular edema, right eye">E11.3411 — Severe NPDR with ME, right</option>
+          <option value="E11.3412|Type 2 DM, severe NPDR with macular edema, left eye">E11.3412 — Severe NPDR with ME, left</option>
+          <option value="E11.3413|Type 2 DM, severe NPDR with macular edema, bilateral">E11.3413 — Severe NPDR with ME, bilateral</option>
+        </optgroup>
+        <optgroup label="Type 2 DM — PDR with ME">
+          <option value="E11.3511|Type 2 DM, PDR with macular edema, right eye">E11.3511 — PDR with ME, right</option>
+          <option value="E11.3512|Type 2 DM, PDR with macular edema, left eye">E11.3512 — PDR with ME, left</option>
+          <option value="E11.3513|Type 2 DM, PDR with macular edema, bilateral">E11.3513 — PDR with ME, bilateral</option>
+        </optgroup>
+        <optgroup label="Type 2 DM — DR without ME">
+          <option value="E11.319|Type 2 DM with unspecified DR without macular edema">E11.319 — Unspecified DR, no ME</option>
+          <option value="E11.3291|Type 2 DM, mild NPDR without ME, right eye">E11.3291 — Mild NPDR, no ME, right</option>
+          <option value="E11.3292|Type 2 DM, mild NPDR without ME, left eye">E11.3292 — Mild NPDR, no ME, left</option>
+          <option value="E11.3293|Type 2 DM, mild NPDR without ME, bilateral">E11.3293 — Mild NPDR, no ME, bilateral</option>
+          <option value="E11.3391|Type 2 DM, moderate NPDR without ME, right eye">E11.3391 — Moderate NPDR, no ME, right</option>
+          <option value="E11.3392|Type 2 DM, moderate NPDR without ME, left eye">E11.3392 — Moderate NPDR, no ME, left</option>
+          <option value="E11.3393|Type 2 DM, moderate NPDR without ME, bilateral">E11.3393 — Moderate NPDR, no ME, bilateral</option>
+          <option value="E11.3491|Type 2 DM, severe NPDR without ME, right eye">E11.3491 — Severe NPDR, no ME, right</option>
+          <option value="E11.3492|Type 2 DM, severe NPDR without ME, left eye">E11.3492 — Severe NPDR, no ME, left</option>
+          <option value="E11.3493|Type 2 DM, severe NPDR without ME, bilateral">E11.3493 — Severe NPDR, no ME, bilateral</option>
+          <option value="E11.3591|Type 2 DM, PDR without ME, right eye">E11.3591 — PDR, no ME, right</option>
+          <option value="E11.3592|Type 2 DM, PDR without ME, left eye">E11.3592 — PDR, no ME, left</option>
+          <option value="E11.3593|Type 2 DM, PDR without ME, bilateral">E11.3593 — PDR, no ME, bilateral</option>
+        </optgroup>
+        <optgroup label="Type 1 DM — Mild NPDR with ME">
+          <option value="E10.3211|Type 1 DM, mild NPDR with macular edema, right eye">E10.3211 — Mild NPDR with ME, right</option>
+          <option value="E10.3212|Type 1 DM, mild NPDR with macular edema, left eye">E10.3212 — Mild NPDR with ME, left</option>
+          <option value="E10.3213|Type 1 DM, mild NPDR with macular edema, bilateral">E10.3213 — Mild NPDR with ME, bilateral</option>
+        </optgroup>
+        <optgroup label="Type 1 DM — Moderate NPDR with ME">
+          <option value="E10.3311|Type 1 DM, moderate NPDR with macular edema, right eye">E10.3311 — Moderate NPDR with ME, right</option>
+          <option value="E10.3312|Type 1 DM, moderate NPDR with macular edema, left eye">E10.3312 — Moderate NPDR with ME, left</option>
+          <option value="E10.3313|Type 1 DM, moderate NPDR with macular edema, bilateral">E10.3313 — Moderate NPDR with ME, bilateral</option>
+        </optgroup>
+        <optgroup label="Type 1 DM — Severe NPDR with ME">
+          <option value="E10.3411|Type 1 DM, severe NPDR with macular edema, right eye">E10.3411 — Severe NPDR with ME, right</option>
+          <option value="E10.3412|Type 1 DM, severe NPDR with macular edema, left eye">E10.3412 — Severe NPDR with ME, left</option>
+          <option value="E10.3413|Type 1 DM, severe NPDR with macular edema, bilateral">E10.3413 — Severe NPDR with ME, bilateral</option>
+        </optgroup>
+        <optgroup label="Type 1 DM — PDR with ME">
+          <option value="E10.3511|Type 1 DM, PDR with macular edema, right eye">E10.3511 — PDR with ME, right</option>
+          <option value="E10.3512|Type 1 DM, PDR with macular edema, left eye">E10.3512 — PDR with ME, left</option>
+          <option value="E10.3513|Type 1 DM, PDR with macular edema, bilateral">E10.3513 — PDR with ME, bilateral</option>
+        </optgroup>
+      </select>
+    </div>
+  </div>
+
+  <!-- RVO sub-selectors (eye laterality embedded in code, so no eye buttons needed) -->
+  <div class="diag-sub" id="sub-BRVO">
+    <div class="form-group">
+      <label>Laterality</label>
+      <select id="sel-BRVO" onchange="updateICD()">
+        <option value="">— Select —</option>
+        <option value="H34.8110|BRVO with macular edema, right eye">H34.8110 — BRVO with macular edema, right eye</option>
+        <option value="H34.8120|BRVO with macular edema, left eye">H34.8120 — BRVO with macular edema, left eye</option>
+        <option value="H34.8130|BRVO with macular edema, bilateral">H34.8130 — BRVO with macular edema, bilateral</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="diag-sub" id="sub-CRVO">
+    <div class="form-group">
+      <label>Laterality</label>
+      <select id="sel-CRVO" onchange="updateICD()">
+        <option value="">— Select —</option>
+        <option value="H34.8310|CRVO with macular edema, right eye">H34.8310 — CRVO with macular edema, right eye</option>
+        <option value="H34.8320|CRVO with macular edema, left eye">H34.8320 — CRVO with macular edema, left eye</option>
+        <option value="H34.8330|CRVO with macular edema, bilateral">H34.8330 — CRVO with macular edema, bilateral</option>
+      </select>
+    </div>
+  </div>
+
+  <!-- ME / uveitis use eye buttons for laterality -->
+  <div class="form-group" style="margin-top:16px;" id="eyeRow">
+    <label>Affected Eye</label>
+    <div class="eye-group">
+      <button class="eye-btn" onclick="selectEye('OD')" id="btn-OD">Right Eye (OD)</button>
+      <button class="eye-btn" onclick="selectEye('OS')" id="btn-OS">Left Eye (OS)</button>
+      <button class="eye-btn" onclick="selectEye('OU')" id="btn-OU">Both Eyes (OU)</button>
+    </div>
+  </div>
+  <div class="icd-preview" id="icdPreview"></div>
+
+  <!-- PRIOR TREATMENTS -->
+  <hr class="divider"/>
+  <div class="section-label">Prior Treatments — Inadequate Response</div>
+  <div class="checkbox-grid">
+    <label class="checkbox-item"><input type="checkbox" value="bevacizumab (Avastin)"/><span><span class="drug-label">Avastin</span> <span class="drug-generic">(bevacizumab)</span></span></label>
+    <label class="checkbox-item"><input type="checkbox" value="aflibercept (EYLEA)"/><span><span class="drug-label">EYLEA</span> <span class="drug-generic">(aflibercept)</span></span></label>
+    <label class="checkbox-item"><input type="checkbox" value="faricimab (Vabysmo)"/><span><span class="drug-label">Vabysmo</span> <span class="drug-generic">(faricimab)</span></span></label>
+    <label class="checkbox-item"><input type="checkbox" value="dexamethasone implant (Ozurdex)"/><span><span class="drug-label">Ozurdex</span> <span class="drug-generic">(dexamethasone implant)</span></span></label>
+    <label class="checkbox-item"><input type="checkbox" value="fluocinolone acetonide implant (Iluvien)"/><span><span class="drug-label">Iluvien</span> <span class="drug-generic">(fluocinolone acetonide)</span></span></label>
+    <label class="checkbox-item"><input type="checkbox" value="triamcinolone acetonide (Xipere)"/><span><span class="drug-label">Xipere</span> <span class="drug-generic">(triamcinolone acetonide)</span></span></label>
+    <label class="checkbox-item"><input type="checkbox" value="methotrexate sodium (intravitreal)"/><span><span class="drug-label">Methotrexate sodium</span> <span class="drug-generic">(intravitreal)</span></span></label>
+    <label class="checkbox-item"><input type="checkbox" value="ganciclovir (intravitreal)"/><span><span class="drug-label">Ganciclovir</span> <span class="drug-generic">(intravitreal)</span></span></label>
+  </div>
+
+  <!-- SIGNING PHYSICIAN -->
+  <hr class="divider"/>
+  <div class="section-label">Signing Physician</div>
+  <div class="form-group">
+    <label>Physician Name (as it should appear on the letter)</label>
+    <input type="text" id="signerName" placeholder="e.g. Jane Smith, MD" oninput="updateCursivePreview()" />
+    <div class="cursive-preview" id="cursivePreview"></div>
+  </div>
+
+  <p class="error-msg" id="errorMsg">Please fill in all required fields and select at least one prior treatment.</p>
+  <button class="generate-btn" onclick="generatePDF()">⬇ Generate Medical Necessity Letter (PDF)</button>
+</div>
+
+<script>
+ let selectedEye = '';
   let currentICD = '';
   let currentDiagLabel = '';
 
@@ -272,3 +566,6 @@ let selectedEye = '';
       img.onerror = () => buildPDF(null);
     }
   }
+</script>
+</body>
+</html>
