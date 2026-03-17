@@ -1,298 +1,4 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Medical Necessity Letter Generator</title>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-  <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body {
-      font-family: 'Segoe UI', Arial, sans-serif;
-      background: #f0f4f8;
-      min-height: 100vh;
-      display: flex;
-      align-items: flex-start;
-      justify-content: center;
-      padding: 40px 16px;
-    }
-    .card {
-      background: white;
-      border-radius: 12px;
-      box-shadow: 0 4px 24px rgba(0,0,0,0.10);
-      padding: 40px 44px;
-      max-width: 680px;
-      width: 100%;
-    }
-    h1 { font-size: 1.45rem; color: #1a2e4a; margin-bottom: 4px; }
-    .subtitle { font-size: 0.85rem; color: #6b7a8d; margin-bottom: 32px; }
-    .section-label {
-      font-size: 0.7rem; font-weight: 700; color: #6b7a8d;
-      text-transform: uppercase; letter-spacing: 1px;
-      margin-bottom: 10px; margin-top: 24px;
-    }
-    .form-row { display: flex; gap: 16px; }
-    .form-group { display: flex; flex-direction: column; flex: 1; margin-bottom: 4px; }
-    label { font-size: 0.82rem; font-weight: 600; color: #2d3e50; margin-bottom: 5px; }
-    input[type="text"], input[type="date"], select {
-      border: 1.5px solid #dce3ec; border-radius: 7px;
-      padding: 9px 12px; font-size: 0.92rem; color: #1a2e4a;
-      background: #f8fafc; outline: none; width: 100%;
-    }
-    input:focus, select:focus { border-color: #2a6ebb; background: #fff; }
-    .eye-group { display: flex; gap: 10px; margin-top: 2px; }
-    .eye-btn {
-      flex: 1; padding: 9px 0; border: 1.5px solid #dce3ec;
-      border-radius: 7px; background: #f8fafc;
-      font-size: 0.88rem; font-weight: 600; color: #4a5c6e;
-      cursor: pointer; text-align: center;
-    }
-    .eye-btn.selected { background: #2a6ebb; color: white; border-color: #2a6ebb; }
-    .checkbox-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 20px; margin-top: 4px; }
-    .checkbox-item { display: flex; align-items: center; gap: 8px; font-size: 0.88rem; color: #2d3e50; cursor: pointer; }
-    .checkbox-item input { width: 16px; height: 16px; accent-color: #2a6ebb; cursor: pointer; }
-    .drug-label { font-weight: 600; }
-    .drug-generic { color: #6b7a8d; font-size: 0.78rem; }
-    .divider { border: none; border-top: 1.5px solid #eef1f5; margin: 28px 0 4px; }
-    .generate-btn {
-      width: 100%; margin-top: 28px; padding: 13px;
-      background: #2a6ebb; color: white; border: none;
-      border-radius: 8px; font-size: 1rem; font-weight: 700; cursor: pointer;
-    }
-    .generate-btn:hover { background: #1d5399; }
-    .error-msg { color: #c0392b; font-size: 0.82rem; margin-top: 10px; display: none; }
-    .icd-preview { font-size: 0.78rem; color: #2a6ebb; font-weight: 600; margin-top: 6px; min-height: 18px; }
-    .cursive-preview {
-      font-family: 'Georgia', cursive; font-style: italic;
-      font-size: 1.1rem; color: #1a2e4a; margin-top: 4px; min-height: 24px;
-    }
-    .diag-sub { margin-top: 10px; display: none; }
-    .diag-sub.visible { display: block; }
-    .diag-sub label { margin-bottom: 5px; color: #4a5c6e; }
-  </style>
-</head>
-<body>
-<div class="card">
-  <h1>Medical Necessity Letter Generator</h1>
-  <p class="subtitle">Intravitreal / Ocular Pharmacotherapy — Prior Authorization</p>
-
-  <!-- PATIENT INFO -->
-  <div class="section-label">Patient Information</div>
-  <div class="form-row">
-    <div class="form-group">
-      <label>Patient Full Name</label>
-      <input type="text" id="patientName" placeholder="Last, First Middle" />
-    </div>
-    <div class="form-group">
-      <label>Date of Birth</label>
-      <input type="date" id="dob" />
-    </div>
-  </div>
-
-  <!-- REQUESTED DRUG -->
-  <hr class="divider"/>
-  <div class="section-label">Requested Medication</div>
-  <div class="form-group">
-    <label>Drug Being Requested</label>
-    <select id="requestedDrug">
-      <option value="">— Select drug —</option>
-      <optgroup label="Anti-VEGF">
-        <option value="aflibercept (EYLEA)">aflibercept (EYLEA)</option>
-        <option value="faricimab (Vabysmo)">faricimab (Vabysmo)</option>
-        <option value="bevacizumab (Avastin)">bevacizumab (Avastin)</option>
-      </optgroup>
-      <optgroup label="Corticosteroid Implants">
-        <option value="dexamethasone implant (Ozurdex)">dexamethasone implant (Ozurdex)</option>
-        <option value="fluocinolone acetonide implant (Iluvien)">fluocinolone acetonide implant (Iluvien)</option>
-        <option value="triamcinolone acetonide (Xipere)">triamcinolone acetonide (Xipere)</option>
-      </optgroup>
-      <optgroup label="Other / Specialty">
-        <option value="methotrexate sodium (intravitreal)">methotrexate sodium (intravitreal)</option>
-        <option value="ganciclovir (intravitreal)">ganciclovir (intravitreal)</option>
-      </optgroup>
-    </select>
-  </div>
-
-  <!-- DIAGNOSIS -->
-  <hr class="divider"/>
-  <div class="section-label">Diagnosis</div>
-  <div class="form-group">
-    <label>Diagnosis Category</label>
-    <select id="diagCategory" onchange="onDiagCategoryChange()">
-      <option value="">— Select category —</option>
-      <option value="wAMD">Neovascular (Wet) Age-Related Macular Degeneration</option>
-      <option value="DME">Diabetic Macular Edema / Diabetic Retinopathy</option>
-      <option value="BRVO">Macular Edema — Branch Retinal Vein Occlusion (BRVO)</option>
-      <option value="CRVO">Macular Edema — Central Retinal Vein Occlusion (CRVO)</option>
-      <option value="ME">Macular Edema, Unspecified</option>
-      <option value="uveitis">Unspecified Focal Chorioretinal Inflammation</option>
-    </select>
-  </div>
-
-  <!-- wAMD sub-selector -->
-  <div class="diag-sub" id="sub-wAMD">
-    <div class="form-group">
-      <label>AMD Subtype</label>
-      <select id="sel-wAMD" onchange="updateICD()">
-        <option value="">— Select subtype —</option>
-        <optgroup label="Unspecified Exudative AMD">
-          <option value="H35.3110|Unspecified exudative AMD, right eye">H35.3110 — Unspecified exudative AMD, right eye</option>
-          <option value="H35.3120|Unspecified exudative AMD, left eye">H35.3120 — Unspecified exudative AMD, left eye</option>
-          <option value="H35.3130|Unspecified exudative AMD, bilateral">H35.3130 — Unspecified exudative AMD, bilateral</option>
-          <option value="H35.3190|Unspecified exudative AMD, unspecified eye">H35.3190 — Unspecified exudative AMD, unspecified eye</option>
-        </optgroup>
-        <optgroup label="Active Choroidal Neovascularization">
-          <option value="H35.3111|Exudative AMD with active CNV, right eye">H35.3111 — Active CNV, right eye</option>
-          <option value="H35.3121|Exudative AMD with active CNV, left eye">H35.3121 — Active CNV, left eye</option>
-          <option value="H35.3131|Exudative AMD with active CNV, bilateral">H35.3131 — Active CNV, bilateral</option>
-        </optgroup>
-        <optgroup label="Inactive Choroidal Neovascularization">
-          <option value="H35.3112|Exudative AMD with inactive CNV, right eye">H35.3112 — Inactive CNV, right eye</option>
-          <option value="H35.3122|Exudative AMD with inactive CNV, left eye">H35.3122 — Inactive CNV, left eye</option>
-          <option value="H35.3132|Exudative AMD with inactive CNV, bilateral">H35.3132 — Inactive CNV, bilateral</option>
-        </optgroup>
-        <optgroup label="Inactive Scar">
-          <option value="H35.3113|Exudative AMD with inactive scar, right eye">H35.3113 — Inactive scar, right eye</option>
-          <option value="H35.3123|Exudative AMD with inactive scar, left eye">H35.3123 — Inactive scar, left eye</option>
-          <option value="H35.3133|Exudative AMD with inactive scar, bilateral">H35.3133 — Inactive scar, bilateral</option>
-        </optgroup>
-      </select>
-    </div>
-  </div>
-
-  <!-- DME sub-selector -->
-  <div class="diag-sub" id="sub-DME">
-    <div class="form-group">
-      <label>Diabetes Type &amp; Retinopathy Stage</label>
-      <select id="sel-DME" onchange="updateICD()">
-        <option value="">— Select code —</option>
-        <optgroup label="Type 2 DM — Unspecified DR">
-          <option value="E11.311|Type 2 DM with unspecified diabetic retinopathy with macular edema">E11.311 — Unspecified DR with ME</option>
-        </optgroup>
-        <optgroup label="Type 2 DM — Mild NPDR with ME">
-          <option value="E11.3211|Type 2 DM, mild NPDR with macular edema, right eye">E11.3211 — Mild NPDR with ME, right</option>
-          <option value="E11.3212|Type 2 DM, mild NPDR with macular edema, left eye">E11.3212 — Mild NPDR with ME, left</option>
-          <option value="E11.3213|Type 2 DM, mild NPDR with macular edema, bilateral">E11.3213 — Mild NPDR with ME, bilateral</option>
-        </optgroup>
-        <optgroup label="Type 2 DM — Moderate NPDR with ME">
-          <option value="E11.3311|Type 2 DM, moderate NPDR with macular edema, right eye">E11.3311 — Moderate NPDR with ME, right</option>
-          <option value="E11.3312|Type 2 DM, moderate NPDR with macular edema, left eye">E11.3312 — Moderate NPDR with ME, left</option>
-          <option value="E11.3313|Type 2 DM, moderate NPDR with macular edema, bilateral">E11.3313 — Moderate NPDR with ME, bilateral</option>
-        </optgroup>
-        <optgroup label="Type 2 DM — Severe NPDR with ME">
-          <option value="E11.3411|Type 2 DM, severe NPDR with macular edema, right eye">E11.3411 — Severe NPDR with ME, right</option>
-          <option value="E11.3412|Type 2 DM, severe NPDR with macular edema, left eye">E11.3412 — Severe NPDR with ME, left</option>
-          <option value="E11.3413|Type 2 DM, severe NPDR with macular edema, bilateral">E11.3413 — Severe NPDR with ME, bilateral</option>
-        </optgroup>
-        <optgroup label="Type 2 DM — PDR with ME">
-          <option value="E11.3511|Type 2 DM, PDR with macular edema, right eye">E11.3511 — PDR with ME, right</option>
-          <option value="E11.3512|Type 2 DM, PDR with macular edema, left eye">E11.3512 — PDR with ME, left</option>
-          <option value="E11.3513|Type 2 DM, PDR with macular edema, bilateral">E11.3513 — PDR with ME, bilateral</option>
-        </optgroup>
-        <optgroup label="Type 2 DM — DR without ME">
-          <option value="E11.319|Type 2 DM with unspecified DR without macular edema">E11.319 — Unspecified DR, no ME</option>
-          <option value="E11.3291|Type 2 DM, mild NPDR without ME, right eye">E11.3291 — Mild NPDR, no ME, right</option>
-          <option value="E11.3292|Type 2 DM, mild NPDR without ME, left eye">E11.3292 — Mild NPDR, no ME, left</option>
-          <option value="E11.3293|Type 2 DM, mild NPDR without ME, bilateral">E11.3293 — Mild NPDR, no ME, bilateral</option>
-          <option value="E11.3391|Type 2 DM, moderate NPDR without ME, right eye">E11.3391 — Moderate NPDR, no ME, right</option>
-          <option value="E11.3392|Type 2 DM, moderate NPDR without ME, left eye">E11.3392 — Moderate NPDR, no ME, left</option>
-          <option value="E11.3393|Type 2 DM, moderate NPDR without ME, bilateral">E11.3393 — Moderate NPDR, no ME, bilateral</option>
-          <option value="E11.3491|Type 2 DM, severe NPDR without ME, right eye">E11.3491 — Severe NPDR, no ME, right</option>
-          <option value="E11.3492|Type 2 DM, severe NPDR without ME, left eye">E11.3492 — Severe NPDR, no ME, left</option>
-          <option value="E11.3493|Type 2 DM, severe NPDR without ME, bilateral">E11.3493 — Severe NPDR, no ME, bilateral</option>
-          <option value="E11.3591|Type 2 DM, PDR without ME, right eye">E11.3591 — PDR, no ME, right</option>
-          <option value="E11.3592|Type 2 DM, PDR without ME, left eye">E11.3592 — PDR, no ME, left</option>
-          <option value="E11.3593|Type 2 DM, PDR without ME, bilateral">E11.3593 — PDR, no ME, bilateral</option>
-        </optgroup>
-        <optgroup label="Type 1 DM — Mild NPDR with ME">
-          <option value="E10.3211|Type 1 DM, mild NPDR with macular edema, right eye">E10.3211 — Mild NPDR with ME, right</option>
-          <option value="E10.3212|Type 1 DM, mild NPDR with macular edema, left eye">E10.3212 — Mild NPDR with ME, left</option>
-          <option value="E10.3213|Type 1 DM, mild NPDR with macular edema, bilateral">E10.3213 — Mild NPDR with ME, bilateral</option>
-        </optgroup>
-        <optgroup label="Type 1 DM — Moderate NPDR with ME">
-          <option value="E10.3311|Type 1 DM, moderate NPDR with macular edema, right eye">E10.3311 — Moderate NPDR with ME, right</option>
-          <option value="E10.3312|Type 1 DM, moderate NPDR with macular edema, left eye">E10.3312 — Moderate NPDR with ME, left</option>
-          <option value="E10.3313|Type 1 DM, moderate NPDR with macular edema, bilateral">E10.3313 — Moderate NPDR with ME, bilateral</option>
-        </optgroup>
-        <optgroup label="Type 1 DM — Severe NPDR with ME">
-          <option value="E10.3411|Type 1 DM, severe NPDR with macular edema, right eye">E10.3411 — Severe NPDR with ME, right</option>
-          <option value="E10.3412|Type 1 DM, severe NPDR with macular edema, left eye">E10.3412 — Severe NPDR with ME, left</option>
-          <option value="E10.3413|Type 1 DM, severe NPDR with macular edema, bilateral">E10.3413 — Severe NPDR with ME, bilateral</option>
-        </optgroup>
-        <optgroup label="Type 1 DM — PDR with ME">
-          <option value="E10.3511|Type 1 DM, PDR with macular edema, right eye">E10.3511 — PDR with ME, right</option>
-          <option value="E10.3512|Type 1 DM, PDR with macular edema, left eye">E10.3512 — PDR with ME, left</option>
-          <option value="E10.3513|Type 1 DM, PDR with macular edema, bilateral">E10.3513 — PDR with ME, bilateral</option>
-        </optgroup>
-      </select>
-    </div>
-  </div>
-
-  <!-- RVO sub-selectors (eye laterality embedded in code, so no eye buttons needed) -->
-  <div class="diag-sub" id="sub-BRVO">
-    <div class="form-group">
-      <label>Laterality</label>
-      <select id="sel-BRVO" onchange="updateICD()">
-        <option value="">— Select —</option>
-        <option value="H34.8110|BRVO with macular edema, right eye">H34.8110 — BRVO with macular edema, right eye</option>
-        <option value="H34.8120|BRVO with macular edema, left eye">H34.8120 — BRVO with macular edema, left eye</option>
-        <option value="H34.8130|BRVO with macular edema, bilateral">H34.8130 — BRVO with macular edema, bilateral</option>
-      </select>
-    </div>
-  </div>
-
-  <div class="diag-sub" id="sub-CRVO">
-    <div class="form-group">
-      <label>Laterality</label>
-      <select id="sel-CRVO" onchange="updateICD()">
-        <option value="">— Select —</option>
-        <option value="H34.8310|CRVO with macular edema, right eye">H34.8310 — CRVO with macular edema, right eye</option>
-        <option value="H34.8320|CRVO with macular edema, left eye">H34.8320 — CRVO with macular edema, left eye</option>
-        <option value="H34.8330|CRVO with macular edema, bilateral">H34.8330 — CRVO with macular edema, bilateral</option>
-      </select>
-    </div>
-  </div>
-
-  <!-- ME / uveitis use eye buttons for laterality -->
-  <div class="form-group" style="margin-top:16px;" id="eyeRow">
-    <label>Affected Eye</label>
-    <div class="eye-group">
-      <button class="eye-btn" onclick="selectEye('OD')" id="btn-OD">Right Eye (OD)</button>
-      <button class="eye-btn" onclick="selectEye('OS')" id="btn-OS">Left Eye (OS)</button>
-      <button class="eye-btn" onclick="selectEye('OU')" id="btn-OU">Both Eyes (OU)</button>
-    </div>
-  </div>
-  <div class="icd-preview" id="icdPreview"></div>
-
-  <!-- PRIOR TREATMENTS -->
-  <hr class="divider"/>
-  <div class="section-label">Prior Treatments — Inadequate Response</div>
-  <div class="checkbox-grid">
-    <label class="checkbox-item"><input type="checkbox" value="bevacizumab (Avastin)"/><span><span class="drug-label">Avastin</span> <span class="drug-generic">(bevacizumab)</span></span></label>
-    <label class="checkbox-item"><input type="checkbox" value="aflibercept (EYLEA)"/><span><span class="drug-label">EYLEA</span> <span class="drug-generic">(aflibercept)</span></span></label>
-    <label class="checkbox-item"><input type="checkbox" value="faricimab (Vabysmo)"/><span><span class="drug-label">Vabysmo</span> <span class="drug-generic">(faricimab)</span></span></label>
-    <label class="checkbox-item"><input type="checkbox" value="dexamethasone implant (Ozurdex)"/><span><span class="drug-label">Ozurdex</span> <span class="drug-generic">(dexamethasone implant)</span></span></label>
-    <label class="checkbox-item"><input type="checkbox" value="fluocinolone acetonide implant (Iluvien)"/><span><span class="drug-label">Iluvien</span> <span class="drug-generic">(fluocinolone acetonide)</span></span></label>
-    <label class="checkbox-item"><input type="checkbox" value="triamcinolone acetonide (Xipere)"/><span><span class="drug-label">Xipere</span> <span class="drug-generic">(triamcinolone acetonide)</span></span></label>
-    <label class="checkbox-item"><input type="checkbox" value="methotrexate sodium (intravitreal)"/><span><span class="drug-label">Methotrexate sodium</span> <span class="drug-generic">(intravitreal)</span></span></label>
-    <label class="checkbox-item"><input type="checkbox" value="ganciclovir (intravitreal)"/><span><span class="drug-label">Ganciclovir</span> <span class="drug-generic">(intravitreal)</span></span></label>
-  </div>
-
-  <!-- SIGNING PHYSICIAN -->
-  <hr class="divider"/>
-  <div class="section-label">Signing Physician</div>
-  <div class="form-group">
-    <label>Physician Name (as it should appear on the letter)</label>
-    <input type="text" id="signerName" placeholder="e.g. Jane Smith, MD" oninput="updateCursivePreview()" />
-    <div class="cursive-preview" id="cursivePreview"></div>
-  </div>
-
-  <p class="error-msg" id="errorMsg">Please fill in all required fields and select at least one prior treatment.</p>
-  <button class="generate-btn" onclick="generatePDF()">⬇ Generate Medical Necessity Letter (PDF)</button>
-</div>
-
-<script>
-  let selectedEye = '';
+let selectedEye = '';
   let currentICD = '';
   let currentDiagLabel = '';
 
@@ -309,33 +15,41 @@
     logoDataURL = canvas.toDataURL('image/png');
   };
 
-  // Categories that embed laterality in the ICD code (no eye buttons needed)
   const lateralityEmbedded = ['wAMD','DME','BRVO','CRVO'];
 
   function onDiagCategoryChange() {
     const cat = document.getElementById('diagCategory').value;
-    // Hide all sub-selectors
+
+    // Hide all sub-selectors and reset their values
     ['wAMD','DME','BRVO','CRVO'].forEach(k => {
-      document.getElementById('sub-'+k).classList.remove('visible');
+      const el = document.getElementById('sub-'+k);
+      if (el) {
+        el.classList.remove('visible');
+        const sel = document.getElementById('sel-'+k);
+        if (sel) sel.value = '';
+      }
     });
-    // Show relevant sub-selector
+
+    // Show the relevant sub-selector
     if (cat && document.getElementById('sub-'+cat)) {
       document.getElementById('sub-'+cat).classList.add('visible');
     }
+
     // Show/hide eye buttons
-    const eyeRow = document.getElementById('eyeRow');
-    if (lateralityEmbedded.includes(cat)) {
-      eyeRow.style.display = 'none';
-    } else {
-      eyeRow.style.display = 'block';
-    }
-    // Reset
+    document.getElementById('eyeRow').style.display =
+      lateralityEmbedded.includes(cat) ? 'none' : 'block';
+
+    // Reset eye selection
     selectedEye = '';
-    ['OD','OS','OU'].forEach(e => document.getElementById('btn-'+e).classList.remove('selected'));
+    ['OD','OS','OU'].forEach(e => {
+      const b = document.getElementById('btn-'+e);
+      if (b) b.classList.remove('selected');
+    });
+
+    // Reset ICD state
     currentICD = '';
     currentDiagLabel = '';
     document.getElementById('icdPreview').textContent = '';
-    updateICD();
   }
 
   function selectEye(eye) {
@@ -345,14 +59,17 @@
     updateICD();
   }
 
-  // Simple fallback ICD maps for ME and uveitis (eye buttons control laterality)
   const simpleDiagMap = {
-    ME:      { OD:{code:'H35.81',label:'Macular Edema, Unspecified, right eye'},
-               OS:{code:'H35.82',label:'Macular Edema, Unspecified, left eye'},
-               OU:{code:'H35.89',label:'Macular Edema, Unspecified, bilateral'} },
-    uveitis: { OD:{code:'H30.001',label:'Unspecified Focal Chorioretinal Inflammation, right eye'},
-               OS:{code:'H30.002',label:'Unspecified Focal Chorioretinal Inflammation, left eye'},
-               OU:{code:'H30.003',label:'Unspecified Focal Chorioretinal Inflammation, bilateral'} }
+    ME: {
+      OD: { code:'H35.81', label:'Macular Edema, Unspecified, right eye' },
+      OS: { code:'H35.82', label:'Macular Edema, Unspecified, left eye' },
+      OU: { code:'H35.89', label:'Macular Edema, Unspecified, bilateral' }
+    },
+    uveitis: {
+      OD: { code:'H30.001', label:'Unspecified Focal Chorioretinal Inflammation, right eye' },
+      OS: { code:'H30.002', label:'Unspecified Focal Chorioretinal Inflammation, left eye' },
+      OU: { code:'H30.003', label:'Unspecified Focal Chorioretinal Inflammation, bilateral' }
+    }
   };
 
   function updateICD() {
@@ -360,34 +77,39 @@
     const preview = document.getElementById('icdPreview');
     currentICD = '';
     currentDiagLabel = '';
+    preview.textContent = '';
 
-    if (!cat) { preview.textContent = ''; return; }
+    if (!cat) return;
 
     if (lateralityEmbedded.includes(cat)) {
-      const sel = document.getElementById('sel-'+cat);
-      if (sel && sel.value) {
-        const parts = sel.value.split('|');
-        currentICD = parts[0];
-        currentDiagLabel = parts[1];
-        preview.textContent = 'ICD-10: ' + currentICD + ' — ' + currentDiagLabel;
-      } else {
-        preview.textContent = '';
+      // Read from the sub-dropdown for this category
+      const selEl = document.getElementById('sel-' + cat);
+      if (!selEl || !selEl.value) {
+        preview.textContent = 'Select a specific code above.';
+        return;
       }
+      const parts = selEl.value.split('|');
+      currentICD = parts[0].trim();
+      currentDiagLabel = parts[1] ? parts[1].trim() : parts[0].trim();
+      preview.textContent = 'ICD-10: ' + currentICD + ' — ' + currentDiagLabel;
+
     } else {
-      // ME or uveitis — need eye selection
-      if (selectedEye && simpleDiagMap[cat]) {
-        const entry = simpleDiagMap[cat][selectedEye];
-        currentICD = entry.code;
-        currentDiagLabel = entry.label;
-        preview.textContent = 'ICD-10: ' + currentICD + ' — ' + currentDiagLabel;
-      } else {
-        preview.textContent = cat ? 'Select affected eye to see ICD-10 code.' : '';
+      // ME or uveitis — need eye button selection
+      if (!selectedEye) {
+        preview.textContent = 'Select affected eye to see ICD-10 code.';
+        return;
       }
+      const entry = simpleDiagMap[cat] && simpleDiagMap[cat][selectedEye];
+      if (!entry) return;
+      currentICD = entry.code;
+      currentDiagLabel = entry.label;
+      preview.textContent = 'ICD-10: ' + currentICD + ' — ' + currentDiagLabel;
     }
   }
 
   function updateCursivePreview() {
-    document.getElementById('cursivePreview').textContent = document.getElementById('signerName').value.trim();
+    document.getElementById('cursivePreview').textContent =
+      document.getElementById('signerName').value.trim();
   }
 
   function formatDate(s) {
@@ -406,38 +128,43 @@
     const requested = document.getElementById('requestedDrug').value;
     const signer    = document.getElementById('signerName').value.trim();
     const failed    = Array.from(document.querySelectorAll('.checkbox-grid input:checked')).map(c=>c.value);
-    const failedList = failed.length===1 ? failed[0] : failed.slice(0,-1).join(', ')+', and '+failed[failed.length-1];
+    const failedList = failed.length===1
+      ? failed[0]
+      : failed.slice(0,-1).join(', ') + ', and ' + failed[failed.length-1];
 
     // Determine laterality label for header
-    let eyeLabelCap = '';
     const cat = document.getElementById('diagCategory').value;
+    let eyeLabelCap = '';
     if (lateralityEmbedded.includes(cat)) {
-      // Extract from description
       const dl = currentDiagLabel.toLowerCase();
-      if (dl.includes('bilateral')) eyeLabelCap = 'Both Eyes (OU)';
-      else if (dl.includes('right')) eyeLabelCap = 'Right Eye (OD)';
-      else if (dl.includes('left')) eyeLabelCap = 'Left Eye (OS)';
-      else eyeLabelCap = 'Unspecified Eye';
+      if (dl.includes('bilateral'))     eyeLabelCap = 'Both Eyes (OU)';
+      else if (dl.includes('right'))    eyeLabelCap = 'Right Eye (OD)';
+      else if (dl.includes('left'))     eyeLabelCap = 'Left Eye (OS)';
+      else                              eyeLabelCap = 'Unspecified Eye';
     } else {
-      eyeLabelCap = selectedEye==='OD'?'Right Eye (OD)':selectedEye==='OS'?'Left Eye (OS)':'Both Eyes (OU)';
+      eyeLabelCap = selectedEye==='OD' ? 'Right Eye (OD)'
+                  : selectedEye==='OS' ? 'Left Eye (OS)'
+                  : 'Both Eyes (OU)';
     }
 
-    // Eye in body sentence
-    const eyeInBody = eyeLabelCap==='Both Eyes (OU)'?'both eyes (OU)':
-                      eyeLabelCap==='Right Eye (OD)'?'the right eye (OD)':'the left eye (OS)';
+    const eyeInBody = eyeLabelCap==='Both Eyes (OU)'  ? 'both eyes (OU)'
+                    : eyeLabelCap==='Right Eye (OD)'  ? 'the right eye (OD)'
+                    : 'the left eye (OS)';
 
     const {jsPDF} = window.jspdf;
-    const doc = new jsPDF({unit:'pt',format:'letter'});
+    const doc = new jsPDF({unit:'pt', format:'letter'});
     const mL=72, mR=72, pW=612, tW=pW-mL-mR;
-    let y=52;
+    let y = 52;
 
-    const sf=(style,size,color=[0,0,0])=>{
-      doc.setFont('helvetica',style); doc.setFontSize(size); doc.setTextColor(...color);
+    const sf = (style, size, color=[0,0,0]) => {
+      doc.setFont('helvetica', style);
+      doc.setFontSize(size);
+      doc.setTextColor(...color);
     };
-    const wrap=(text,yy,lh=15.5)=>{
-      const lines=doc.splitTextToSize(text,tW);
-      lines.forEach((l,i)=>doc.text(l,mL,yy+i*lh));
-      return yy+lines.length*lh;
+    const wrap = (text, yy, lh=15.5) => {
+      const lines = doc.splitTextToSize(text, tW);
+      lines.forEach((l,i) => doc.text(l, mL, yy + i*lh));
+      return yy + lines.length * lh;
     };
 
     // Logo
@@ -445,30 +172,34 @@
       doc.addImage(logo, 'PNG', mL, y, 240, 96);
       y += 110;
     } else {
-      sf('bold',13,[26,46,74]); doc.text('New York Eye and Ear Infirmary of Mount Sinai',mL,y+30); y+=50;
+      sf('bold', 13, [26,46,74]);
+      doc.text('New York Eye and Ear Infirmary of Mount Sinai', mL, y+30);
+      y += 50;
     }
 
     doc.setDrawColor(200,210,220); doc.setLineWidth(0.75); doc.line(mL,y,pW-mR,y); y+=14;
-    sf('bold',11,[26,46,74]); doc.text('Department of Ophthalmology — Vitreoretinal Surgery & Medical Retina',mL,y); y+=22;
-    sf('normal',10,[100,100,100]); doc.text(getTodayFormatted(),mL,y); y+=26;
+    sf('bold',11,[26,46,74]);
+    doc.text('Department of Ophthalmology — Vitreoretinal Surgery & Medical Retina', mL, y); y+=22;
+    sf('normal',10,[100,100,100]); doc.text(getTodayFormatted(), mL, y); y+=26;
 
     // RE block
-    sf('bold',10.5,[0,0,0]); doc.text(`RE: Medical Necessity — ${requested}`,mL,y); y+=15;
+    sf('bold',10.5,[0,0,0]); doc.text(`RE: Medical Necessity — ${requested}`, mL, y); y+=15;
     sf('normal',10.5);
-    doc.text(`Patient: ${name}   |   DOB: ${formatDate(dob)}   |   ${eyeLabelCap}`,mL,y); y+=15;
-    doc.text(`Diagnosis: ${currentDiagLabel}   |   ICD-10: ${currentICD}`,mL,y); y+=26;
+    doc.text(`Patient: ${name}   |   DOB: ${formatDate(dob)}   |   ${eyeLabelCap}`, mL, y); y+=15;
+    // Wrap diagnosis line in case it's long
+    y = wrap(`Diagnosis: ${currentDiagLabel}   |   ICD-10: ${currentICD}`, y); y+=14;
 
     // Body
     sf('normal',10.5);
-    y=wrap('To Whom It May Concern:',y); y+=14;
+    y = wrap('To Whom It May Concern:', y); y+=14;
 
-    y=wrap(
+    y = wrap(
       `I am writing on behalf of my patient, ${name} (Date of Birth: ${formatDate(dob)}), ` +
       `to request prior authorization for ${requested} for the treatment of ${currentDiagLabel} ` +
       `(ICD-10: ${currentICD}) affecting ${eyeInBody}.`,
     y); y+=12;
 
-    y=wrap(
+    y = wrap(
       `This patient has demonstrated persistent, recalcitrant disease with inadequate treatment ` +
       `response despite appropriate trials — defined as three (3) or more injections — of the ` +
       `following agent(s): ${failedList}. Despite these treatments, the patient has not achieved ` +
@@ -476,33 +207,38 @@
       `intraretinal fluid on optical coherence tomography (OCT) and/or ongoing visual impairment.`,
     y); y+=12;
 
-    y=wrap(
+    y = wrap(
       `Please note that ranibizumab (Lucentis), biosimilar ranibizumab (Byooviz), and ` +
       `ranibizumab-nuna (Cimerli) are not stocked at our institution and are therefore not ` +
       `viable alternatives for this patient.`,
     y); y+=12;
 
-    y=wrap(
+    y = wrap(
       `Given the documented treatment failure described above, it is my medical opinion that ` +
       `${requested} represents the most appropriate and medically necessary next step in the ` +
       `management of this patient's condition. I respectfully request expedited review and ` +
       `approval of this prior authorization.`,
     y); y+=12;
 
-    y=wrap(`Please do not hesitate to contact our office if additional clinical documentation is required.`,y); y+=32;
+    y = wrap(
+      `Please do not hesitate to contact our office if additional clinical documentation is required.`,
+    y); y+=32;
 
     // Signature
-    sf('normal',10.5,[0,0,0]); doc.text('Sincerely,',mL,y); y+=36;
+    sf('normal',10.5,[0,0,0]); doc.text('Sincerely,', mL, y); y+=36;
     doc.setFont('times','italic'); doc.setFontSize(18); doc.setTextColor(26,46,74);
-    doc.text(signer,mL,y); y+=8;
-    doc.setDrawColor(160,160,160); doc.setLineWidth(0.5); doc.line(mL,y,mL+220,y); y+=14;
-    sf('normal',10.5,[0,0,0]); doc.text(signer,mL,y); y+=13;
-    sf('normal',10,[80,80,80]); doc.text('Department of Ophthalmology — Vitreoretinal Surgery',mL,y);
+    doc.text(signer, mL, y); y+=8;
+    doc.setDrawColor(160,160,160); doc.setLineWidth(0.5); doc.line(mL, y, mL+220, y); y+=14;
+    sf('normal',10.5,[0,0,0]); doc.text(signer, mL, y); y+=13;
+    sf('normal',10,[80,80,80]); doc.text('Department of Ophthalmology — Vitreoretinal Surgery', mL, y);
 
     // Footer
     doc.setDrawColor(200,210,220); doc.setLineWidth(0.5); doc.line(mL,756,pW-mR,756);
     sf('normal',8,[160,160,160]);
-    doc.text("This letter was generated for prior authorization purposes. Contact the treating physician's office for questions.",mL,770);
+    doc.text(
+      "This letter was generated for prior authorization purposes. Contact the treating physician's office for questions.",
+      mL, 770
+    );
 
     const safeName = name.replace(/[^a-zA-Z0-9]/g,'_');
     doc.save(`MedNecessity_${safeName}_${new Date().toISOString().slice(0,10)}.pdf`);
@@ -516,10 +252,10 @@
     const failed    = Array.from(document.querySelectorAll('.checkbox-grid input:checked')).map(c=>c.value);
     const errEl     = document.getElementById('errorMsg');
 
-    if (!name||!dob||!currentICD||!requested||!signer||failed.length===0) {
-      errEl.style.display='block'; return;
+    if (!name || !dob || !currentICD || !requested || !signer || failed.length===0) {
+      errEl.style.display = 'block'; return;
     }
-    errEl.style.display='none';
+    errEl.style.display = 'none';
 
     if (logoDataURL) {
       buildPDF(logoDataURL);
@@ -530,12 +266,9 @@
       img.onload = function() {
         const c = document.createElement('canvas');
         c.width = img.naturalWidth; c.height = img.naturalHeight;
-        c.getContext('2d').drawImage(img,0,0);
+        c.getContext('2d').drawImage(img, 0, 0);
         buildPDF(c.toDataURL('image/png'));
       };
-      img.onerror = ()=>buildPDF(null);
+      img.onerror = () => buildPDF(null);
     }
   }
-</script>
-</body>
-</html>
