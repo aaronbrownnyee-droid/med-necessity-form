@@ -1,6 +1,5 @@
 <!DOCTYPE html>
 <html lang="en">
-  
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
@@ -229,7 +228,7 @@
     </div>
   </div>
 
-  <!-- RVO sub-selectors (eye laterality embedded in code, so no eye buttons needed) -->
+  <!-- BRVO sub-selector -->
   <div class="diag-sub" id="sub-BRVO">
     <div class="form-group">
       <label>Laterality</label>
@@ -242,6 +241,7 @@
     </div>
   </div>
 
+  <!-- CRVO sub-selector -->
   <div class="diag-sub" id="sub-CRVO">
     <div class="form-group">
       <label>Laterality</label>
@@ -254,7 +254,7 @@
     </div>
   </div>
 
-  <!-- ME / uveitis use eye buttons for laterality -->
+  <!-- Eye buttons (ME and uveitis only) -->
   <div class="form-group" style="margin-top:16px;" id="eyeRow">
     <label>Affected Eye</label>
     <div class="eye-group">
@@ -293,7 +293,11 @@
 </div>
 
 <script>
- let selectedEye = '';
+  // ── PASTE YOUR APPS SCRIPT URL HERE ──────────────────────
+  const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxzrad9l432lYPQQ1VJbTxmNcLC-88UQ5SV4BLFG7pvwqtkK9eKnDt6E1fOwMlVOYb01w/exec';
+  // ─────────────────────────────────────────────────────────
+
+  let selectedEye = '';
   let currentICD = '';
   let currentDiagLabel = '';
 
@@ -314,34 +318,22 @@
 
   function onDiagCategoryChange() {
     const cat = document.getElementById('diagCategory').value;
-
-    // Hide all sub-selectors and reset their values
     ['wAMD','DME','BRVO','CRVO'].forEach(k => {
       const el = document.getElementById('sub-'+k);
-      if (el) {
-        el.classList.remove('visible');
-        const sel = document.getElementById('sel-'+k);
-        if (sel) sel.value = '';
-      }
+      if (el) el.classList.remove('visible');
+      const sel = document.getElementById('sel-'+k);
+      if (sel) sel.value = '';
     });
-
-    // Show the relevant sub-selector
     if (cat && document.getElementById('sub-'+cat)) {
       document.getElementById('sub-'+cat).classList.add('visible');
     }
-
-    // Show/hide eye buttons
     document.getElementById('eyeRow').style.display =
       lateralityEmbedded.includes(cat) ? 'none' : 'block';
-
-    // Reset eye selection
     selectedEye = '';
     ['OD','OS','OU'].forEach(e => {
       const b = document.getElementById('btn-'+e);
       if (b) b.classList.remove('selected');
     });
-
-    // Reset ICD state
     currentICD = '';
     currentDiagLabel = '';
     document.getElementById('icdPreview').textContent = '';
@@ -373,12 +365,10 @@
     currentICD = '';
     currentDiagLabel = '';
     preview.textContent = '';
-
     if (!cat) return;
 
     if (lateralityEmbedded.includes(cat)) {
-      // Read from the sub-dropdown for this category
-      const selEl = document.getElementById('sel-' + cat);
+      const selEl = document.getElementById('sel-'+cat);
       if (!selEl || !selEl.value) {
         preview.textContent = 'Select a specific code above.';
         return;
@@ -387,9 +377,7 @@
       currentICD = parts[0].trim();
       currentDiagLabel = parts[1] ? parts[1].trim() : parts[0].trim();
       preview.textContent = 'ICD-10: ' + currentICD + ' — ' + currentDiagLabel;
-
     } else {
-      // ME or uveitis — need eye button selection
       if (!selectedEye) {
         preview.textContent = 'Select affected eye to see ICD-10 code.';
         return;
@@ -417,6 +405,34 @@
     return new Date().toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'});
   }
 
+  // ── GOOGLE SHEETS LOGGING ─────────────────────────────────
+  function logToSheets(drugRequested, diagLabel, icdCode, dob, eyeLabel) {
+    // Calculate age — the actual DOB is never transmitted
+    let age = null;
+    if (dob) {
+      const today = new Date();
+      const birth = new Date(dob);
+      age = today.getFullYear() - birth.getFullYear();
+      const m = today.getMonth() - birth.getMonth();
+      if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--;
+    }
+    const payload = {
+      timestamp:     new Date().toLocaleString('en-US'),
+      drugRequested: drugRequested,
+      diagnosis:     diagLabel,
+      icdCode:       icdCode,
+      patientAge:    age,
+      laterality:    eyeLabel
+    };
+    fetch(APPS_SCRIPT_URL, {
+      method:  'POST',
+      mode:    'no-cors',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify(payload)
+    }).catch(err => console.warn('Metrics logging failed (non-critical):', err));
+  }
+  // ─────────────────────────────────────────────────────────
+
   function buildPDF(logo) {
     const name      = document.getElementById('patientName').value.trim();
     const dob       = document.getElementById('dob').value;
@@ -427,23 +443,22 @@
       ? failed[0]
       : failed.slice(0,-1).join(', ') + ', and ' + failed[failed.length-1];
 
-    // Determine laterality label for header
     const cat = document.getElementById('diagCategory').value;
     let eyeLabelCap = '';
     if (lateralityEmbedded.includes(cat)) {
       const dl = currentDiagLabel.toLowerCase();
-      if (dl.includes('bilateral'))     eyeLabelCap = 'Both Eyes (OU)';
-      else if (dl.includes('right'))    eyeLabelCap = 'Right Eye (OD)';
-      else if (dl.includes('left'))     eyeLabelCap = 'Left Eye (OS)';
-      else                              eyeLabelCap = 'Unspecified Eye';
+      if (dl.includes('bilateral'))  eyeLabelCap = 'Both Eyes (OU)';
+      else if (dl.includes('right')) eyeLabelCap = 'Right Eye (OD)';
+      else if (dl.includes('left'))  eyeLabelCap = 'Left Eye (OS)';
+      else                           eyeLabelCap = 'Unspecified Eye';
     } else {
       eyeLabelCap = selectedEye==='OD' ? 'Right Eye (OD)'
                   : selectedEye==='OS' ? 'Left Eye (OS)'
                   : 'Both Eyes (OU)';
     }
 
-    const eyeInBody = eyeLabelCap==='Both Eyes (OU)'  ? 'both eyes (OU)'
-                    : eyeLabelCap==='Right Eye (OD)'  ? 'the right eye (OD)'
+    const eyeInBody = eyeLabelCap==='Both Eyes (OU)' ? 'both eyes (OU)'
+                    : eyeLabelCap==='Right Eye (OD)' ? 'the right eye (OD)'
                     : 'the left eye (OS)';
 
     const {jsPDF} = window.jspdf;
@@ -467,7 +482,7 @@
       doc.addImage(logo, 'PNG', mL, y, 240, 96);
       y += 110;
     } else {
-      sf('bold', 13, [26,46,74]);
+      sf('bold',13,[26,46,74]);
       doc.text('New York Eye and Ear Infirmary of Mount Sinai', mL, y+30);
       y += 50;
     }
@@ -481,7 +496,6 @@
     sf('bold',10.5,[0,0,0]); doc.text(`RE: Medical Necessity — ${requested}`, mL, y); y+=15;
     sf('normal',10.5);
     doc.text(`Patient: ${name}   |   DOB: ${formatDate(dob)}   |   ${eyeLabelCap}`, mL, y); y+=15;
-    // Wrap diagnosis line in case it's long
     y = wrap(`Diagnosis: ${currentDiagLabel}   |   ICD-10: ${currentICD}`, y); y+=14;
 
     // Body
@@ -525,7 +539,8 @@
     doc.text(signer, mL, y); y+=8;
     doc.setDrawColor(160,160,160); doc.setLineWidth(0.5); doc.line(mL, y, mL+220, y); y+=14;
     sf('normal',10.5,[0,0,0]); doc.text(signer, mL, y); y+=13;
-    sf('normal',10,[80,80,80]); doc.text('Department of Ophthalmology — Vitreoretinal Surgery', mL, y);
+    sf('normal',10,[80,80,80]);
+    doc.text('Department of Ophthalmology — Vitreoretinal Surgery', mL, y);
 
     // Footer
     doc.setDrawColor(200,210,220); doc.setLineWidth(0.5); doc.line(mL,756,pW-mR,756);
@@ -535,8 +550,11 @@
       mL, 770
     );
 
-    const safeName = name.replace(/[^a-zA-Z0-9]/g,'_');
+    // ── Log metrics silently after PDF saves ─────────────────
     logToSheets(requested, currentDiagLabel, currentICD, dob, eyeLabelCap);
+    // ─────────────────────────────────────────────────────────
+
+    const safeName = name.replace(/[^a-zA-Z0-9]/g,'_');
     doc.save(`MedNecessity_${safeName}_${new Date().toISOString().slice(0,10)}.pdf`);
   }
 
@@ -548,10 +566,10 @@
     const failed    = Array.from(document.querySelectorAll('.checkbox-grid input:checked')).map(c=>c.value);
     const errEl     = document.getElementById('errorMsg');
 
-    if (!name || !dob || !currentICD || !requested || !signer || failed.length===0) {
-      errEl.style.display = 'block'; return;
+    if (!name||!dob||!currentICD||!requested||!signer||failed.length===0) {
+      errEl.style.display='block'; return;
     }
-    errEl.style.display = 'none';
+    errEl.style.display='none';
 
     if (logoDataURL) {
       buildPDF(logoDataURL);
@@ -568,38 +586,6 @@
       img.onerror = () => buildPDF(null);
     }
   }
-  
-const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxzrad9l432lYPQQ1VJbTxmNcLC-88UQ5SV4BLFG7pvwqtkK9eKnDt6E1fOwMlVOYb01w/exec
-';
-
-function logToSheets(drugRequested, diagLabel, icdCode, dob, eyeLabel) {
-  // Calculate age — never log the actual DOB
-  let age = null;
-  if (dob) {
-    const today = new Date();
-    const birth = new Date(dob);
-    age = today.getFullYear() - birth.getFullYear();
-    const m = today.getMonth() - birth.getMonth();
-    if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--;
-  }
-
-  const payload = {
-    timestamp:     new Date().toLocaleString('en-US'),
-    drugRequested: drugRequested,
-    diagnosis:     diagLabel,
-    icdCode:       icdCode,
-    patientAge:    age,
-    laterality:    eyeLabel
-  };
-
-  fetch(APPS_SCRIPT_URL, {
-    method:  'POST',
-    mode:    'no-cors',   // required for Apps Script
-    headers: { 'Content-Type': 'application/json' },
-    body:    JSON.stringify(payload)
-  }).catch(err => console.warn('Metrics logging failed (non-critical):', err));
-  // Runs silently in background — won't block PDF generation
-}
 </script>
 </body>
 </html>
