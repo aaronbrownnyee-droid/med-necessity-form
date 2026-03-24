@@ -536,6 +536,7 @@
     );
 
     const safeName = name.replace(/[^a-zA-Z0-9]/g,'_');
+    logToSheets(requested, currentDiagLabel, currentICD, dob, eyeLabelCap);
     doc.save(`MedNecessity_${safeName}_${new Date().toISOString().slice(0,10)}.pdf`);
   }
 
@@ -567,6 +568,38 @@
       img.onerror = () => buildPDF(null);
     }
   }
+  
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxzrad9l432lYPQQ1VJbTxmNcLC-88UQ5SV4BLFG7pvwqtkK9eKnDt6E1fOwMlVOYb01w/exec
+';
+
+function logToSheets(drugRequested, diagLabel, icdCode, dob, eyeLabel) {
+  // Calculate age — never log the actual DOB
+  let age = null;
+  if (dob) {
+    const today = new Date();
+    const birth = new Date(dob);
+    age = today.getFullYear() - birth.getFullYear();
+    const m = today.getMonth() - birth.getMonth();
+    if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--;
+  }
+
+  const payload = {
+    timestamp:     new Date().toLocaleString('en-US'),
+    drugRequested: drugRequested,
+    diagnosis:     diagLabel,
+    icdCode:       icdCode,
+    patientAge:    age,
+    laterality:    eyeLabel
+  };
+
+  fetch(APPS_SCRIPT_URL, {
+    method:  'POST',
+    mode:    'no-cors',   // required for Apps Script
+    headers: { 'Content-Type': 'application/json' },
+    body:    JSON.stringify(payload)
+  }).catch(err => console.warn('Metrics logging failed (non-critical):', err));
+  // Runs silently in background — won't block PDF generation
+}
 </script>
 </body>
 </html>
