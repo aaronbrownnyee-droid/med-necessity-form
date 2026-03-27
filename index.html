@@ -102,6 +102,12 @@
     </div>
   </div>
 
+  <!-- INSURER -->
+  <div class="form-group" style="margin-top:16px;">
+    <label>Insurance Company</label>
+    <input type="text" id="insurer" placeholder="e.g. UnitedHealthcare, Aetna, Cigna..." />
+  </div>
+
   <!-- REQUESTED DRUG -->
   <hr class="divider"/>
   <div class="section-label">Requested Medication</div>
@@ -330,15 +336,12 @@
 </div>
 
 <script>
-  // ── PASTE YOUR APPS SCRIPT URL HERE ──────────────────────
-  const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxzrad9l432lYPQQ1VJbTxmNcLC-88UQ5SV4BLFG7pvwqtkK9eKnDt6E1fOwMlVOYb01w/exec';
-  // ─────────────────────────────────────────────────────────
+  var APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxzrad9l432lYPQQ1VJbTxmNcLC-88UQ5SV4BLFG7pvwqtkK9eKnDt6E1fOwMlVOYb01w/exec';
 
-  let selectedEye    = '';
-  let currentICD     = '';
-  let currentDiagLabel = '';
+  var selectedEye      = '';
+  var currentICD       = '';
+  var currentDiagLabel = '';
 
-  // Wire up cursive preview separately (avoids oninput attribute issues)
   document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('signerName').addEventListener('input', function() {
       document.getElementById('cursivePreview').textContent = this.value;
@@ -346,47 +349,34 @@
   });
 
   // Pre-load logo
-  let logoDataURL = null;
-  const logoImg = new Image();
+  var logoDataURL = null;
+  var logoImg = new Image();
   logoImg.crossOrigin = 'anonymous';
   logoImg.src = 'MSHS-NYEE-Logo-300x12.png';
   logoImg.onload = function() {
-    const canvas = document.createElement('canvas');
+    var canvas = document.createElement('canvas');
     canvas.width  = logoImg.naturalWidth;
     canvas.height = logoImg.naturalHeight;
     canvas.getContext('2d').drawImage(logoImg, 0, 0);
     logoDataURL = canvas.toDataURL('image/png');
   };
 
-  // Categories where laterality is encoded inside the ICD code itself
-  const EMBEDDED = ['wAMD','DME','BRVO','CRVO'];
+  var EMBEDDED = ['wAMD','DME','BRVO','CRVO'];
 
   function onDiagCategoryChange() {
-    const cat = document.getElementById('diagCategory').value;
-
-    // Hide and reset all sub-selectors
+    var cat = document.getElementById('diagCategory').value;
     EMBEDDED.forEach(function(k) {
       var subEl = document.getElementById('sub-' + k);
       if (subEl) subEl.classList.remove('visible');
       var selEl = document.getElementById('sel-' + k);
       if (selEl) selEl.value = '';
     });
-
-    // Show the relevant sub-selector
     if (cat) {
       var target = document.getElementById('sub-' + cat);
       if (target) target.classList.add('visible');
     }
-
-    // Eye buttons only needed for ME and uveitis
     var eyeRow = document.getElementById('eyeRow');
-    if (EMBEDDED.indexOf(cat) === -1 && cat !== '') {
-      eyeRow.style.display = 'block';
-    } else {
-      eyeRow.style.display = 'none';
-    }
-
-    // Reset state
+    eyeRow.style.display = (EMBEDDED.indexOf(cat) === -1 && cat !== '') ? 'block' : 'none';
     selectedEye = '';
     ['OD','OS','OU'].forEach(function(e) {
       var b = document.getElementById('btn-' + e);
@@ -425,7 +415,6 @@
     currentICD       = '';
     currentDiagLabel = '';
     preview.textContent = '';
-
     if (!cat) return;
 
     if (EMBEDDED.indexOf(cat) !== -1) {
@@ -437,10 +426,8 @@
       var parts        = selEl.value.split('|');
       currentICD       = parts[0].trim();
       currentDiagLabel = parts[1] ? parts[1].trim() : parts[0].trim();
-      preview.textContent = 'ICD-10: ' + currentICD + ' — ' + currentDiagLabel;
-
+      preview.textContent = 'ICD-10: ' + currentICD + ' \u2014 ' + currentDiagLabel;
     } else {
-      // ME or uveitis — need eye button
       if (!selectedEye) {
         preview.textContent = 'Select affected eye to see ICD-10 code.';
         return;
@@ -449,18 +436,18 @@
       if (!entry) return;
       currentICD       = entry.code;
       currentDiagLabel = entry.label;
-      preview.textContent = 'ICD-10: ' + currentICD + ' — ' + currentDiagLabel;
+      preview.textContent = 'ICD-10: ' + currentICD + ' \u2014 ' + currentDiagLabel;
     }
   }
 
   function formatDate(s) {
     if (!s) return '';
-    var parts = s.split('-');
-    return parts[1] + '/' + parts[2] + '/' + parts[0];
+    var p = s.split('-');
+    return p[1] + '/' + p[2] + '/' + p[0];
   }
 
   function getTodayFormatted() {
-    return new Date().toLocaleDateString('en-US', {year:'numeric', month:'long', day:'numeric'});
+    return new Date().toLocaleDateString('en-US', {year:'numeric',month:'long',day:'numeric'});
   }
 
   function calcAge(dob) {
@@ -473,14 +460,35 @@
     return age;
   }
 
-  function logToSheets(drugRequested, diagLabel, icdCode, dob, eyeLabel) {
+  function getFailedMeds() {
+    return Array.from(document.querySelectorAll('.checkbox-grid input[type="checkbox"]:checked'))
+               .map(function(c) { return c.value; });
+  }
+
+  function getEyeLabelCap() {
+    var cat = document.getElementById('diagCategory').value;
+    if (EMBEDDED.indexOf(cat) !== -1) {
+      var dl = currentDiagLabel.toLowerCase();
+      if (dl.indexOf('bilateral') !== -1) return 'Both Eyes (OU)';
+      if (dl.indexOf('right') !== -1)     return 'Right Eye (OD)';
+      if (dl.indexOf('left') !== -1)      return 'Left Eye (OS)';
+      return 'Unspecified Eye';
+    }
+    if (selectedEye === 'OD') return 'Right Eye (OD)';
+    if (selectedEye === 'OS') return 'Left Eye (OS)';
+    return 'Both Eyes (OU)';
+  }
+
+  function logToSheets(drugRequested, diagLabel, icdCode, dob, eyeLabel, insurer, failedMeds) {
     var payload = {
       timestamp:     new Date().toLocaleString('en-US'),
+      insurer:       insurer,
       drugRequested: drugRequested,
       diagnosis:     diagLabel,
       icdCode:       icdCode,
       patientAge:    calcAge(dob),
-      laterality:    eyeLabel
+      laterality:    eyeLabel,
+      priorMeds:     failedMeds.join('; ')
     };
     fetch(APPS_SCRIPT_URL, {
       method:  'POST',
@@ -492,31 +500,16 @@
     });
   }
 
-  function getEyeLabelCap() {
-    var cat = document.getElementById('diagCategory').value;
-    if (EMBEDDED.indexOf(cat) !== -1) {
-      var dl = currentDiagLabel.toLowerCase();
-      if (dl.indexOf('bilateral') !== -1)  return 'Both Eyes (OU)';
-      if (dl.indexOf('right') !== -1)      return 'Right Eye (OD)';
-      if (dl.indexOf('left') !== -1)       return 'Left Eye (OS)';
-      return 'Unspecified Eye';
-    }
-    if (selectedEye === 'OD') return 'Right Eye (OD)';
-    if (selectedEye === 'OS') return 'Left Eye (OS)';
-    return 'Both Eyes (OU)';
-  }
-
   function buildPDF(logo) {
     var name      = document.getElementById('patientName').value.trim();
     var dob       = document.getElementById('dob').value;
+    var insurer   = document.getElementById('insurer').value.trim();
     var requested = document.getElementById('requestedDrug').value;
     var signer    = document.getElementById('signerName').value.trim();
-    var failed    = Array.from(document.querySelectorAll('.checkbox-grid input[type="checkbox"]:checked'))
-                        .map(function(c) { return c.value; });
-
+    var failed    = getFailedMeds();
     var failedList = failed.length === 1
       ? failed[0]
-      : failed.slice(0, -1).join(', ') + ', and ' + failed[failed.length - 1];
+      : failed.slice(0,-1).join(', ') + ', and ' + failed[failed.length-1];
 
     var eyeLabelCap = getEyeLabelCap();
     var eyeInBody   = eyeLabelCap === 'Both Eyes (OU)' ? 'both eyes (OU)'
@@ -529,12 +522,11 @@
     var y  = 52;
 
     function sf(style, size, color) {
-      color = color || [0, 0, 0];
+      color = color || [0,0,0];
       doc.setFont('helvetica', style);
       doc.setFontSize(size);
       doc.setTextColor(color[0], color[1], color[2]);
     }
-
     function wrap(text, yy, lh) {
       lh = lh || 15.5;
       var lines = doc.splitTextToSize(text, tW);
@@ -549,40 +541,34 @@
       doc.addImage(logo, 'PNG', mL, y, 240, 96);
       y += 110;
     } else {
-      sf('bold', 13, [26, 46, 74]);
+      sf('bold', 13, [26,46,74]);
       doc.text('New York Eye and Ear Infirmary of Mount Sinai', mL, y + 30);
       y += 50;
     }
 
-    doc.setDrawColor(200, 210, 220);
-    doc.setLineWidth(0.75);
-    doc.line(mL, y, pW - mR, y);
-    y += 14;
+    doc.setDrawColor(200,210,220); doc.setLineWidth(0.75);
+    doc.line(mL, y, pW-mR, y); y += 14;
 
-    sf('bold', 11, [26, 46, 74]);
+    sf('bold', 11, [26,46,74]);
     doc.text('Department of Ophthalmology \u2014 Vitreoretinal Surgery & Medical Retina', mL, y);
     y += 22;
 
-    sf('normal', 10, [100, 100, 100]);
-    doc.text(getTodayFormatted(), mL, y);
-    y += 26;
+    sf('normal', 10, [100,100,100]);
+    doc.text(getTodayFormatted(), mL, y); y += 26;
 
     // RE block
-    sf('bold', 10.5, [0, 0, 0]);
-    doc.text('RE: Medical Necessity \u2014 ' + requested, mL, y);
-    y += 15;
-
-    sf('normal', 10.5, [0, 0, 0]);
-    doc.text('Patient: ' + name + '   |   DOB: ' + formatDate(dob) + '   |   ' + eyeLabelCap, mL, y);
-    y += 15;
-
-    y = wrap('Diagnosis: ' + currentDiagLabel + '   |   ICD-10: ' + currentICD, y);
-    y += 14;
+    sf('bold', 10.5, [0,0,0]);
+    doc.text('RE: Medical Necessity \u2014 ' + requested, mL, y); y += 15;
+    sf('normal', 10.5, [0,0,0]);
+    doc.text('Patient: ' + name + '   |   DOB: ' + formatDate(dob) + '   |   ' + eyeLabelCap, mL, y); y += 15;
+    if (insurer) {
+      doc.text('Insurer: ' + insurer, mL, y); y += 15;
+    }
+    y = wrap('Diagnosis: ' + currentDiagLabel + '   |   ICD-10: ' + currentICD, y); y += 14;
 
     // Body
-    sf('normal', 10.5, [0, 0, 0]);
-    y = wrap('To Whom It May Concern:', y);
-    y += 14;
+    sf('normal', 10.5, [0,0,0]);
+    y = wrap('To Whom It May Concern:', y); y += 14;
 
     y = wrap(
       'I am writing on behalf of my patient, ' + name +
@@ -617,44 +603,30 @@
     y); y += 32;
 
     // Signature
-    sf('normal', 10.5, [0, 0, 0]);
-    doc.text('Sincerely,', mL, y);
-    y += 36;
-
-    doc.setFont('times', 'italic');
-    doc.setFontSize(18);
-    doc.setTextColor(26, 46, 74);
-    doc.text(signer, mL, y);
-    y += 8;
-
-    doc.setDrawColor(160, 160, 160);
-    doc.setLineWidth(0.5);
-    doc.line(mL, y, mL + 220, y);
-    y += 14;
-
-    sf('normal', 10.5, [0, 0, 0]);
-    doc.text(signer, mL, y);
-    y += 13;
-
-    sf('normal', 10, [80, 80, 80]);
+    sf('normal', 10.5, [0,0,0]);
+    doc.text('Sincerely,', mL, y); y += 36;
+    doc.setFont('times','italic'); doc.setFontSize(18); doc.setTextColor(26,46,74);
+    doc.text(signer, mL, y); y += 8;
+    doc.setDrawColor(160,160,160); doc.setLineWidth(0.5);
+    doc.line(mL, y, mL+220, y); y += 14;
+    sf('normal', 10.5, [0,0,0]); doc.text(signer, mL, y); y += 13;
+    sf('normal', 10, [80,80,80]);
     doc.text('Department of Ophthalmology \u2014 Vitreoretinal Surgery', mL, y);
 
     // Footer
-    doc.setDrawColor(200, 210, 220);
-    doc.setLineWidth(0.5);
-    doc.line(mL, 756, pW - mR, 756);
-    sf('normal', 8, [160, 160, 160]);
+    doc.setDrawColor(200,210,220); doc.setLineWidth(0.5);
+    doc.line(mL, 756, pW-mR, 756);
+    sf('normal', 8, [160,160,160]);
     doc.text(
       "This letter was generated for prior authorization purposes. Contact the treating physician's office for questions.",
       mL, 770
     );
 
-    // Log metrics then save
-    logToSheets(requested, currentDiagLabel, currentICD, dob, eyeLabelCap);
+    // Log then save
+    logToSheets(requested, currentDiagLabel, currentICD, dob, eyeLabelCap, insurer, failed);
 
-    var safeName = name.replace(/[^a-zA-Z0-9]/g, '_');
-    var safeDate = new Date().toISOString().slice(0, 10);
-    doc.save('MedNecessity_' + safeName + '_' + safeDate + '.pdf');
+    var safeName = name.replace(/[^a-zA-Z0-9]/g,'_');
+    doc.save('MedNecessity_' + safeName + '_' + new Date().toISOString().slice(0,10) + '.pdf');
   }
 
   function generatePDF() {
@@ -679,8 +651,7 @@
       img.src = 'MSHS-NYEE-Logo-300x12.png';
       img.onload = function() {
         var c = document.createElement('canvas');
-        c.width  = img.naturalWidth;
-        c.height = img.naturalHeight;
+        c.width = img.naturalWidth; c.height = img.naturalHeight;
         c.getContext('2d').drawImage(img, 0, 0);
         buildPDF(c.toDataURL('image/png'));
       };
